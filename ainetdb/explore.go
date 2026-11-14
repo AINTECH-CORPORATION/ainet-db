@@ -2,7 +2,9 @@ package ainetdb
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -71,6 +73,35 @@ func NewExploreHandler(dbPath string) (http.Handler, func() error, error) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"table": table, "rows": out})
+	})
+	mux.HandleFunc("/api/export", func(w http.ResponseWriter, r *http.Request) {
+		table := r.URL.Query().Get("table")
+		rows, err := db.Query(`SELECT * FROM "`+table+`" LIMIT 1000`)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer rows.Close()
+		cols, _ := rows.Columns()
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", table+".csv"))
+		cw := csv.NewWriter(w)
+		_ = cw.Write(cols)
+		for rows.Next() {
+			vals := make([]any, len(cols))
+			ptrs := make([]any, len(cols))
+			for i := range vals {
+				ptrs[i] = &vals[i]
+			}
+			if err := rows.Scan(ptrs...); err == nil {
+				rec := make([]string, len(cols))
+				for i, v := range vals {
+					rec[i] = fmt.Sprint(v)
+				}
+				_ = cw.Write(rec)
+			}
+		}
+		cw.Flush()
 	})
 	return mux, db.Close, nil
 }
