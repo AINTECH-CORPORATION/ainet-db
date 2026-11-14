@@ -42,10 +42,11 @@ func TestExploreDB(t *testing.T) {
 	_, _ = db.Exec(`CREATE TABLE sessions (id TEXT, title TEXT); INSERT INTO sessions VALUES ('s1', 'AINET');`)
 	_ = db.Close()
 
-	h, err := NewExploreHandler(dbPath)
+	h, closeDB, err := NewExploreHandler(dbPath)
 	if err != nil {
 		t.Fatalf("new explore handler: %v", err)
 	}
+	defer closeDB()
 	req := httptest.NewRequest(http.MethodGet, "/api/tables", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)

@@ -9,11 +9,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// NewExploreHandler returns an HTTP handler (Datasette-style) for any .db file.
-func NewExploreHandler(dbPath string) (http.Handler, error) {
+// NewExploreHandler returns an HTTP handler (Datasette-style) for any .db file and a closer.
+func NewExploreHandler(dbPath string) (http.Handler, func() error, error) {
 	db, err := sql.Open("sqlite", dbPath+"?mode=ro")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/tables", func(w http.ResponseWriter, r *http.Request) {
@@ -64,5 +64,5 @@ func NewExploreHandler(dbPath string) (http.Handler, error) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"table": table, "rows": out})
 	})
-	return mux, nil
+	return mux, db.Close, nil
 }
