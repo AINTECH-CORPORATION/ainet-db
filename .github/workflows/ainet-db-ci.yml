@@ -1,0 +1,19 @@
+name: ainet-db CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: go test ./ainetdb/... -v
+      - run: go build ./cmd/ainet-db-explore
+      - run: go test -bench=BenchmarkAINETDB -benchtime=100ms ./bench
