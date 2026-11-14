@@ -1,8 +1,10 @@
 package ainetdb
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
+	"time"
 )
 
 // SyncReport summarizes one automated synchronization cycle across AINET DB modules.
@@ -46,4 +48,28 @@ func RunSyncCycle(dbPath, backupDir, branchName string) (SyncReport, error) {
 		rep.BranchPath = br
 	}
 	return rep, nil
+}
+
+// StartAutoSync runs RunSyncCycle automatically on every tick until ctx is canceled.
+func StartAutoSync(ctx context.Context, dbPath, backupDir, branchName string, interval time.Duration, onCycle func(SyncReport, error)) {
+	if interval <= 0 {
+		interval = time.Minute
+	}
+	run := func() {
+		rep, err := RunSyncCycle(dbPath, backupDir, branchName)
+		if onCycle != nil {
+			onCycle(rep, err)
+		}
+	}
+	run()
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			run()
+		}
+	}
 }
