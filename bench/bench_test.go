@@ -45,3 +45,22 @@ func BenchmarkAINETDBRead(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkAINETDBVectorSearch(b *testing.B) {
+	db := setupBenchDB(b)
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS vec0_items (id TEXT PRIMARY KEY, vec BLOB NOT NULL)`)
+	vec := make([]byte, 384*4)
+	for i := 0; i < 100; i++ {
+		_, _ = db.Exec(`INSERT OR REPLACE INTO vec0_items (id, vec) VALUES (?, ?)`, string(rune('a'+i)), vec)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rows, err := db.Query(`SELECT id, vec FROM vec0_items`)
+		if err != nil {
+			b.Fatalf("query: %v", err)
+		}
+		for rows.Next() {
+		}
+		_ = rows.Close()
+	}
+}
